@@ -56,34 +56,21 @@ public class GridManager : MonoBehaviour
     {
         Vector2Int newPosition = block.gridPosition + direction;
 
-        // Ensure movement stays within grid bounds (1 ≤ x < 11, 1 ≤ y < 6)
-        if (newPosition.x < gridOffset.x || newPosition.x >= gridWidth + gridOffset.x ||
-            newPosition.y < gridOffset.y || newPosition.y >= gridHeight + gridOffset.y)
-            return false;
+        // Boundary check
+        if (!IsWithinBounds(newPosition)) return false;
 
-        // Check if the new position is already occupied by another block
+        // Collision check
         if (gridObjects.TryGetValue(newPosition, out GridObject other))
         {
-            if (other.CompareTag("Wall")) return false; // Walls cannot be moved or passed
-            if (other.CompareTag("Smooth"))
-            {
-                if (!MoveSmooth(other, direction)) return false; // Try to push the smooth block
-            }
-            if (other.CompareTag("Sticky"))
-            {
-                if (!MoveSticky(other, direction)) return false; // Try to move sticky with it
-            }
-            if (other.CompareTag("Clingy"))
-            {
-                return false; // Clingy cannot be pushed
-            }
+            if (other.CompareTag("Wall")) return false;
+            if (other.CompareTag("Smooth")) return HandleSmoothCollision(block, other, direction);
+            if (other.CompareTag("Sticky")) return HandleStickyCollision(block, other, direction);
+            if (other.CompareTag("Clingy")) return HandleClingyCollision(block, other, direction);
         }
 
-        // Update the block's position in the dictionary
-        gridObjects.Remove(block.gridPosition);
-        block.gridPosition = newPosition;
-        gridObjects[newPosition] = block;
-
+        // Move block
+        UpdateBlockPosition(block, newPosition);
+        CheckForClingyPull(block); // Check for Clingy pull after movement
         return true;
     }
 
@@ -143,6 +130,55 @@ public class GridManager : MonoBehaviour
             }
         }
 
-        return MoveBlock(smooth, direction);
+        // Move the smooth block to the new position
+        // Update the smooth block's position in the grid
+        gridObjects.Remove(smooth.gridPosition); // Remove the block from its old position
+        smooth.gridPosition = newPosition; // Update the block's position
+        gridObjects[newPosition] = smooth; // Add the block to the new position
+
+        return true;
     }
+
+    private bool IsWithinBounds(Vector2Int position)
+    {
+        return position.x >= gridOffset.x && position.x < gridWidth + gridOffset.x &&
+               position.y >= gridOffset.y && position.y < gridHeight + gridOffset.y;
+    }
+
+    private bool HandleSmoothCollision(GridObject mover, GridObject smooth, Vector2Int direction)
+    {
+        return MoveSmooth(smooth, direction);
+    }
+
+    private bool HandleStickyCollision(GridObject mover, GridObject sticky, Vector2Int direction)
+    {
+        return MoveSticky(sticky, direction);
+    }
+
+    private bool HandleClingyCollision(GridObject mover, GridObject clingy, Vector2Int direction)
+    {
+        return false; // Clingy cannot be pushed
+    }
+
+    private void UpdateBlockPosition(GridObject block, Vector2Int newPosition)
+    {
+        gridObjects.Remove(block.gridPosition);
+        block.gridPosition = newPosition;
+        gridObjects[newPosition] = block;
+    }
+
+    private void CheckForClingyPull(GridObject movedBlock)
+    {
+        Vector2Int[] adjacentDirections = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
+        foreach (Vector2Int adjDirection in adjacentDirections)
+        {
+            Vector2Int adjPosition = movedBlock.gridPosition + adjDirection;
+            if (gridObjects.TryGetValue(adjPosition, out GridObject adjBlock) && adjBlock.CompareTag("Clingy"))
+            {
+                Vector2Int pullDirection = movedBlock.gridPosition - adjPosition;
+                MoveBlock(adjBlock, pullDirection); // Pull the Clingy block
+            }
+        }
+    }
+
 }
