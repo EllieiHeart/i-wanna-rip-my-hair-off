@@ -67,7 +67,7 @@ public class GridManager : MonoBehaviour
             if (other.CompareTag("Wall")) return false; // Walls cannot be moved or passed
             if (other.CompareTag("Smooth"))
             {
-                if (!MoveBlock(other, direction)) return false; // Try to push the smooth block
+                if (!MoveSmooth(other, direction)) return false; // Try to push the smooth block
             }
             if (other.CompareTag("Sticky"))
             {
@@ -104,9 +104,45 @@ public class GridManager : MonoBehaviour
         // Try to move all together
         foreach (var block in toMove)
         {
+            // If Sticky cannot move, return false
+            if (!CanMoveSticky(block, direction)) return false;
+
+            // Move sticky
             if (!MoveBlock(block, direction)) return false;
         }
 
         return true;
+    }
+
+    private bool CanMoveSticky(GridObject sticky, Vector2Int direction)
+    {
+        Vector2Int newPosition = sticky.gridPosition + direction;
+
+        // Check if the new position is blocked (like a wall or other non-sticky block)
+        if (gridObjects.TryGetValue(newPosition, out GridObject other))
+        {
+            if (other.CompareTag("Wall") || other.CompareTag("Clingy"))
+            {
+                return false; // Blocked by wall or clingy
+            }
+        }
+
+        return true;
+    }
+
+    private bool MoveSmooth(GridObject smooth, Vector2Int direction)
+    {
+        Vector2Int newPosition = smooth.gridPosition + direction;
+
+        // Check if the new position is blocked by another block
+        if (gridObjects.TryGetValue(newPosition, out GridObject other))
+        {
+            if (other.CompareTag("Wall") || other.CompareTag("Clingy"))
+            {
+                return false; // Blocked by wall or clingy
+            }
+        }
+
+        return MoveBlock(smooth, direction);
     }
 }
