@@ -8,7 +8,6 @@ TagManager:
   - Clingy
   - Wall
   - Smooth
-  - Block
   layers:
   - Default
   - TransparentFX
