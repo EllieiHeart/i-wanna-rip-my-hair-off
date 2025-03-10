@@ -253,28 +253,33 @@ public class GridManager : MonoBehaviour
     // Move a sticky block and its adjacent sticky blocks together
     private bool MoveSticky(GridObject sticky, Vector2Int direction)
     {
+        // We need to track which blocks will move
         List<GridObject> toMove = new List<GridObject> { sticky };
 
         // Check each adjacent position to see if any other sticky block should be moved
         foreach (Vector2Int adj in new Vector2Int[] { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right })
         {
             Vector2Int adjPos = sticky.gridPosition + adj;
+
+            // If the adjacent block is also sticky, add it to the list of blocks to move
             if (gridObjects.TryGetValue(adjPos, out GridObject adjacentBlock) && adjacentBlock.CompareTag("Sticky"))
             {
-                toMove.Add(adjacentBlock); // Add the adjacent sticky block to the list
+                toMove.Add(adjacentBlock); // Add the adjacent sticky block to the move list
             }
         }
 
-        // Move all the sticky blocks in the list
+        // Try to move all the sticky blocks in the list
         foreach (var block in toMove)
         {
             if (!CanMoveSticky(block, direction)) return false; // Check if the block can move
 
-            if (!MoveBlock(block, direction)) return false; // Move the block
+            // Try moving the block, if blocked, it won't move
+            if (!MoveBlock(block, direction)) return false; // Move the block, return false if blocked
         }
 
-        return true;
+        return true; // Successfully moved all sticky blocks
     }
+
 
     // Check if a sticky block can move in the given direction
     private bool CanMoveSticky(GridObject sticky, Vector2Int direction)
