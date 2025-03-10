@@ -66,6 +66,22 @@ public class GridManager : MonoBehaviour
             if (other.CompareTag("Clingy")) return HandleClingyCollision(block, other, direction);
         }
 
+        // Prevent Clingy from moving onto Player's position
+        if (block.CompareTag("Clingy") && newPosition == player.gridPosition)
+        {
+            // Find a suitable adjacent position for Clingy
+            Vector2Int[] adjacentDirections = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
+            foreach (Vector2Int adjDir in adjacentDirections)
+            {
+                Vector2Int adjPos = player.gridPosition + adjDir;
+                if (IsWithinBounds(adjPos) && !gridObjects.ContainsKey(adjPos))
+                {
+                    newPosition = adjPos; // Move Clingy to the adjacent position
+                    break;
+                }
+            }
+        }
+
         // Move block
         UpdateBlockPosition(block, newPosition);
         CheckForClingyPull(block); // Check for Clingy pull after movement
@@ -109,9 +125,9 @@ public class GridManager : MonoBehaviour
                             hasMoved = true;
                         }
                     }
-                    else if (obj.CompareTag("Smooth"))
+                    else if (obj.CompareTag("Smooth")) // Added condition for Smooth blocks
                     {
-                        if (IsPlayerPushingSmooth(obj, direction, movingObjects) && CheckCollisions(obj.gridPosition, direction, movingObjects))
+                        if (CheckCollisions(obj.gridPosition, direction, movingObjects) && IsPlayerPushingSmooth(obj, direction, movingObjects))
                         {
                             movingObjects.Add(obj);
                             hasMoved = true;
@@ -119,7 +135,6 @@ public class GridManager : MonoBehaviour
                     }
                 }
             }
-
 
             foreach (GridObject block in movingObjects)
             {
@@ -139,43 +154,41 @@ public class GridManager : MonoBehaviour
 
     private bool IsPlayerPushingSmooth(GridObject smooth, Vector2Int direction, List<GridObject> movingObjects)
     {
-        Vector2Int checkPosition = smooth.gridPosition - direction;
+        Vector2Int checkPosition = smooth.gridPosition - direction; // Position behind the Smooth block
 
-        if (gridObjects.TryGetValue(checkPosition, out GridObject pusher))
+        // Check if the player is at the checkPosition
+        if (gridObjects.TryGetValue(checkPosition, out GridObject pusher) && pusher.CompareTag("Player"))
         {
-            if (pusher.CompareTag("Player") || (pusher.CompareTag("Smooth") && movingObjects.Contains(pusher)) || (pusher.CompareTag("Sticky") && movingObjects.Contains(pusher)))
-            {
-                return true;
-            }
+            return true;
         }
+
         return false;
     }
-
     private bool CheckSticky(Vector2Int position, List<GridObject> movingObjects)
-    {
-        Vector2Int[] adjacentDirections = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
-
-        foreach (Vector2Int adjDirection in adjacentDirections)
         {
-            Vector2Int adjPos = position + adjDirection;
-            if (gridObjects.TryGetValue(adjPos, out GridObject adjBlock))
+            Vector2Int[] adjacentDirections = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
+
+            foreach (Vector2Int adjDirection in adjacentDirections)
             {
-                if (adjBlock.CompareTag("Sticky"))
+                Vector2Int adjPos = position + adjDirection;
+                if (gridObjects.TryGetValue(adjPos, out GridObject adjBlock))
                 {
-                    // Check if the adjacent sticky block is the player or should be moving
-                    if (movingObjects.Contains(adjBlock) || gridObjects.TryGetValue(position - adjDirection, out GridObject playerCheck) && playerCheck.CompareTag("Player"))
+                    if (adjBlock.CompareTag("Sticky"))
+                    {
+                        // Check if the adjacent sticky block is the player or should be moving
+                        if (movingObjects.Contains(adjBlock) || gridObjects.TryGetValue(position - adjDirection, out GridObject playerCheck) && playerCheck.CompareTag("Player"))
+                        {
+                            return true;
+                        }
+                    }
+                    else if (adjBlock.CompareTag("Player"))
                     {
                         return true;
                     }
                 }
-                else if (adjBlock.CompareTag("Player"))
-                {
-                    return true;
-                }
             }
+            return false;
         }
-        return false;
-    }
 
     private bool CheckCollisions(Vector2Int position, Vector2Int direction, List<GridObject> movingObjects)
     {
